@@ -2944,150 +2944,61 @@ static VkResult loader_get_manifest_files(const struct loader_instance *inst, co
     // Make a copy of the input we are using so it is not modified
     // Also handle getting the location(s) from registry on Windows
     if (override == NULL) {
-        size_t loc_size = 0;
 #if !defined(_WIN32)
-        const char *xdgconfdirs = loader_secure_getenv("XDG_CONFIG_DIRS", inst);
-        const char *xdgdatadirs = loader_secure_getenv("XDG_DATA_DIRS", inst);
-        if (xdgconfdirs == NULL || xdgconfdirs[0] == '\0') xdgconfdirs = FALLBACK_CONFIG_DIRS;
-        if (xdgdatadirs == NULL || xdgdatadirs[0] == '\0') xdgdatadirs = FALLBACK_DATA_DIRS;
-        const size_t rel_size = strlen(relative_location);
-        // Leave space for trailing separators
-        loc_size += strlen(xdgconfdirs) + strlen(xdgdatadirs) + 2 * rel_size + 2;
-        for (const char *x = xdgconfdirs; *x; ++x)
-            if (*x == PATH_SEPARATOR) loc_size += rel_size;
-        for (const char *x = xdgdatadirs; *x; ++x)
-            if (*x == PATH_SEPARATOR) loc_size += rel_size;
-        loc_size += strlen(SYSCONFDIR) + rel_size + 1;
-#if defined(EXTRASYSCONFDIR)
-        loc_size += strlen(EXTRASYSCONFDIR) + rel_size + 1;
-#endif
-#else
-        loc_size += strlen(location) + 1;
-#endif
-        loc = loader_stack_alloc(loc_size);
-        if (loc == NULL) {
+
+        char const *soname = "libvulkan.so";
+
+        void *handle = dlopen(soname, RTLD_NOW | RTLD_LOCAL);
+        if (handle == NULL) {
+            loader_log(inst, VK_DEBUG_REPORT_ERROR_BIT_EXT, 0, "loader_get_manifest_files: Failed to libvulkan.so # %s", dlerror());
+            res = VK_ERROR_INITIALIZATION_FAILED;
+            goto out;
+        }
+
+        void *addr = dlsym(handle, "vkGetInstanceProcAddr");
+        if (addr == NULL) {
             loader_log(inst, VK_DEBUG_REPORT_ERROR_BIT_EXT, 0,
-                       "loader_get_manifest_files: Failed to allocate "
-                       "%d bytes for manifest file location.",
-                       loc_size);
-            res = VK_ERROR_OUT_OF_HOST_MEMORY;
+                       "loader_get_manifest_files: Failed to dlsym[%p, vkGetInstanceProcAddr] # %s", handle, dlerror());
+            res = VK_ERROR_INITIALIZATION_FAILED;
             goto out;
         }
+
+        Dl_info info;
+        int rc = dladdr(addr, &info);
+        if (rc == 0) {
+            loader_log(inst, VK_DEBUG_REPORT_ERROR_BIT_EXT, 0, "loader_get_manifest_files: Failed to dladdr[%p]", addr);
+            res = VK_ERROR_INITIALIZATION_FAILED;
+            goto out;
+        }
+
+        char *loc_end = strrchr(info.dli_fname, DIRECTORY_SYMBOL);
+        if (loc_end == NULL) {
+            loader_log(inst, VK_DEBUG_REPORT_ERROR_BIT_EXT, 0, "loader_get_manifest_files: Failed to strrchr[%s, \'/\']",
+                       info.dli_fname);
+            res = VK_ERROR_INITIALIZATION_FAILED;
+            goto out;
+        }
+
+        int i = strncmp(loc_end + 1, soname, strlen(soname));
+
+        char const *custom_location = "/./";
+
+        size_t dl_size = (loc_end - info.dli_fname);
+        const size_t cust_size = strlen(custom_location);
+        const size_t rel_size = strlen(relative_location);
+        size_t loc_size = (dl_size + cust_size + rel_size + 1);
+        loc = loader_stack_alloc(loc_size);
+
         char *loc_write = loc;
-#if !defined(_WIN32)
-        const char *loc_read;
-        size_t start, stop;
-
-        loc_read = &xdgconfdirs[0];
-        start = 0;
-        while (loc_read[start] != '\0') {
-            while (loc_read[start] == PATH_SEPARATOR) {
-                start++;
-            }
-            stop = start;
-            while (loc_read[stop] != PATH_SEPARATOR && loc_read[stop] != '\0') {
-                stop++;
-            }
-            const size_t s = stop - start;
-            if (s) {
-                memcpy(loc_write, &loc_read[start], s);
-                loc_write += s;
-                memcpy(loc_write, relative_location, rel_size);
-                loc_write += rel_size;
-                *loc_write++ = PATH_SEPARATOR;
-                start = stop;
-            }
-        }
-
-        memcpy(loc_write, SYSCONFDIR, strlen(SYSCONFDIR));
-        loc_write += strlen(SYSCONFDIR);
+        memcpy(loc_write, info.dli_fname, dl_size);
+        loc_write += dl_size;
+        memcpy(loc_write, custom_location, cust_size);
+        loc_write += cust_size;
         memcpy(loc_write, relative_location, rel_size);
         loc_write += rel_size;
-        *loc_write++ = PATH_SEPARATOR;
-
-#if defined(EXTRASYSCONFDIR)
-        memcpy(loc_write, EXTRASYSCONFDIR, strlen(EXTRASYSCONFDIR));
-        loc_write += strlen(EXTRASYSCONFDIR);
-        memcpy(loc_write, relative_location, rel_size);
-        loc_write += rel_size;
-        *loc_write++ = PATH_SEPARATOR;
-#endif
-
-        loc_read = &xdgdatadirs[0];
-        start = 0;
-        while (loc_read[start] != '\0') {
-            while (loc_read[start] == PATH_SEPARATOR) {
-                start++;
-            }
-            stop = start;
-            while (loc_read[stop] != PATH_SEPARATOR && loc_read[stop] != '\0') {
-                stop++;
-            }
-            const size_t s = stop - start;
-            if (s) {
-                memcpy(loc_write, &loc_read[start], s);
-                loc_write += s;
-                memcpy(loc_write, relative_location, rel_size);
-                loc_write += rel_size;
-                *loc_write++ = PATH_SEPARATOR;
-                start = stop;
-            }
-        }
-
-        --loc_write;
+        (*loc_write) = '\0';
 #else
-        memcpy(loc_write, location, strlen(location));
-        loc_write += strlen(location);
-#endif
-        assert(loc_write - loc < (ptrdiff_t)loc_size);
-        *loc_write = '\0';
-
-#if defined(_WIN32)
-        VkResult regHKR_result = VK_SUCCESS;
-
-        DWORD reg_size = 4096;
-
-        if (!strncmp(loc, DEFAULT_VK_DRIVERS_INFO, sizeof(DEFAULT_VK_DRIVERS_INFO))) {
-            regHKR_result = loaderGetDeviceRegistryFiles(inst, &reg, &reg_size, LoaderPnpDriverRegistry());
-        } else if (!strncmp(loc, DEFAULT_VK_ELAYERS_INFO, sizeof(DEFAULT_VK_ELAYERS_INFO))) {
-            regHKR_result = loaderGetDeviceRegistryFiles(inst, &reg, &reg_size, LoaderPnpELayerRegistry());
-        } else if (!strncmp(loc, DEFAULT_VK_ILAYERS_INFO, sizeof(DEFAULT_VK_ILAYERS_INFO))) {
-            regHKR_result = loaderGetDeviceRegistryFiles(inst, &reg, &reg_size, LoaderPnpILayerRegistry());
-        }
-
-        VkResult reg_result = loaderGetRegistryFiles(inst, loc, is_layer, &reg, &reg_size);
-
-        if ((VK_SUCCESS != reg_result && VK_SUCCESS != regHKR_result) || NULL == reg) {
-            if (!is_layer) {
-                loader_log(inst, VK_DEBUG_REPORT_ERROR_BIT_EXT, 0,
-                           "loader_get_manifest_files: Registry lookup failed "
-                           "to get ICD manifest files.  Possibly missing Vulkan"
-                           " driver?");
-                if (VK_SUCCESS == regHKR_result || VK_ERROR_OUT_OF_HOST_MEMORY == regHKR_result) {
-                    res = regHKR_result;
-                } else if (VK_SUCCESS == reg_result || VK_ERROR_OUT_OF_HOST_MEMORY == reg_result) {
-                    res = reg_result;
-                } else {
-                    res = VK_ERROR_INCOMPATIBLE_DRIVER;
-                }
-            } else {
-                if (warn_if_not_present) {
-                    // This is only a warning for layers
-                    loader_log(inst, VK_DEBUG_REPORT_WARNING_BIT_EXT, 0,
-                               "loader_get_manifest_files: Registry lookup failed "
-                               "to get layer manifest files.");
-                }
-                if (reg_result == VK_ERROR_OUT_OF_HOST_MEMORY) {
-                    res = reg_result;
-                } else {
-                    // Return success for now since it's not critical for layers
-                    res = VK_SUCCESS;
-                }
-            }
-            goto out;
-        }
-        orig_loc = loc;
-        loc = reg;
+#error not support win32
 #endif
     } else {
         loc = loader_stack_alloc(strlen(override) + 1);

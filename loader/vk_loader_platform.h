@@ -104,7 +104,7 @@ static inline loader_platform_dl_handle loader_platform_open_library(const char 
     // resolved at this time (which improves performance). Note that if not all symbols
     // can be resolved, this could cause crashes later. Use the LD_BIND_NOW environment
     // variable to force all symbols to be resolved here.
-    return dlopen(libPath, RTLD_LAZY | RTLD_LOCAL);
+    return dlopen(libPath, RTLD_NOW | RTLD_LOCAL);
 }
 static inline const char *loader_platform_open_library_error(const char *libPath) { return dlerror(); }
 static inline void loader_platform_close_library(loader_platform_dl_handle library) { dlclose(library); }

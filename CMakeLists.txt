@@ -320,15 +320,15 @@ macro(run_vk_xml_generate dependency output)
 endmacro()
 
 # Define macro used for generating header files containing commit IDs for external dependencies
-macro(run_external_revision_generate source_dir symbol_name output)
-    add_custom_command(OUTPUT ${output}
-    # NOTE: If you modify this call to use --rev_file instead of --git_dir (to read the commit ID from a file instead of
-    # parsing from a Git repository), you probably also want to add the revision file to the list of DEPENDS on the
-    # subsequent line (to ensure that the script is re-run when the revision file is modified).
-    COMMAND ${PYTHON_CMD} ${SCRIPTS_DIR}/external_revision_generator.py --git_dir ${source_dir} -s ${symbol_name} -o ${output}
-    DEPENDS ${SCRIPTS_DIR}/external_revision_generator.py ${source_dir}/.git/HEAD ${source_dir}/.git/index
-    )
-endmacro()
+# macro(run_external_revision_generate source_dir symbol_name output)
+#    add_custom_command(OUTPUT ${output}
+#    # NOTE: If you modify this call to use --rev_file instead of --git_dir (to read the commit ID from a file instead of
+#    # parsing from a Git repository), you probably also want to add the revision file to the list of DEPENDS on the
+#    # subsequent line (to ensure that the script is re-run when the revision file is modified).
+#    COMMAND ${PYTHON_CMD} ${SCRIPTS_DIR}/external_revision_generator.py --git_dir ${source_dir} -s ${symbol_name} -o ${output}
+#    DEPENDS ${SCRIPTS_DIR}/external_revision_generator.py ${source_dir}/.git/HEAD ${source_dir}/.git/index
+#    )
+# endmacro()
 
 # Custom target for generated vulkan helper file dependencies
 add_custom_target(generate_helper_files DEPENDS
@@ -357,7 +357,7 @@ run_vk_xml_generate(helper_file_generator.py vk_enum_string_helper.h)
 run_vk_xml_generate(helper_file_generator.py vk_object_types.h)
 run_vk_xml_generate(helper_file_generator.py vk_extension_helper.h)
 run_vk_xml_generate(helper_file_generator.py vk_typemap_helper.h)
-run_external_revision_generate(${EXTERNAL_SOURCE_ROOT}/glslang/External/spirv-tools SPIRV_TOOLS_COMMIT_ID spirv_tools_commit_id.h)
+# run_external_revision_generate(${EXTERNAL_SOURCE_ROOT}/glslang/External/spirv-tools SPIRV_TOOLS_COMMIT_ID spirv_tools_commit_id.h)
 
 
 

@@ -51,9 +51,9 @@ set(includes
 
 set(libraries PRIVATE ${CMAKE_THREAD_LIBS_INIT})
 
-if(TARGET vulkan)
-    list(APPEND definitions PRIVATE -DUNINSTALLED_LOADER="$<TARGET_FILE:vulkan>")
-endif()
+#if(TARGET vulkan)
+#    list(APPEND definitions PRIVATE -DUNINSTALLED_LOADER="$<TARGET_FILE:vulkan>")
+#endif()
 
 if(WIN32)
     list(APPEND definitions PRIVATE -DVK_USE_PLATFORM_WIN32_KHR)

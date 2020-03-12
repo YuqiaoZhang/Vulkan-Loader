@@ -210,7 +210,7 @@ else()
     add_library(${API_LOWERCASE} SHARED ${NORMAL_LOADER_SRCS} ${OPT_LOADER_SRCS})
     add_dependencies(${API_LOWERCASE} generate_helper_files loader_gen_files loader_asm_gen_files)
     target_compile_definitions(${API_LOWERCASE} PUBLIC -DLOADER_DYNAMIC_LIB)
-    set_target_properties(${API_LOWERCASE} PROPERTIES SOVERSION "1" VERSION "1.0.${vk_header_version}")
+    # set_target_properties(${API_LOWERCASE} PROPERTIES SOVERSION "1" VERSION "1.0.${vk_header_version}")
     target_link_libraries(${API_LOWERCASE} -ldl -lpthread -lm)
 
     if(INSTALL_LVL_FILES)

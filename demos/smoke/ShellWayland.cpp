@@ -243,7 +243,7 @@ void ShellWayland::create_window() {
 }
 
 PFN_vkGetInstanceProcAddr ShellWayland::load_vk() {
-    const char filename[] = "libvulkan.so.1";
+    const char filename[] = "libvulkan.so";
     void *handle, *symbol;
 
 #ifdef UNINSTALLED_LOADER

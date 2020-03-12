@@ -236,16 +236,16 @@ find_library(OSDependent_LIB NAMES OSDependent
 find_library(HLSL_LIB NAMES HLSL
              HINTS ${GLSLANG_SEARCH_PATH} )
 
-find_library(SPIRV_LIB NAMES SPIRV
+find_library(SPIRV_LIB NAMES SPIRV ## from glslang
              HINTS ${GLSLANG_SEARCH_PATH} )
 
-find_library(SPIRV_REMAPPER_LIB NAMES SPVRemapper
+find_library(SPIRV_REMAPPER_LIB NAMES SPVRemapper ## from glslang
              HINTS ${GLSLANG_SEARCH_PATH} )
 
-find_library(SPIRV_TOOLS_LIB NAMES SPIRV-Tools
+find_library(SPIRV_TOOLS_LIB NAMES SPIRV-Tools-shared
              HINTS ${SPIRV_TOOLS_SEARCH_PATH} )
 
-find_library(SPIRV_TOOLS_OPT_LIB NAMES SPIRV-Tools-opt
+find_library(SPIRV_TOOLS_OPT_LIB NAMES SPIRV-Tools-shared
              HINTS ${SPIRV_TOOLS_OPT_SEARCH_PATH} )
 
 if (WIN32)

@@ -2945,28 +2945,11 @@ static VkResult loader_get_manifest_files(const struct loader_instance *inst, co
     // Also handle getting the location(s) from registry on Windows
     if (override == NULL) {
 #if !defined(_WIN32)
-
-        char const *soname = "libvulkan.so";
-
-        void *handle = dlopen(soname, RTLD_NOW | RTLD_LOCAL);
-        if (handle == NULL) {
-            loader_log(inst, VK_DEBUG_REPORT_ERROR_BIT_EXT, 0, "loader_get_manifest_files: Failed to libvulkan.so # %s", dlerror());
-            res = VK_ERROR_INITIALIZATION_FAILED;
-            goto out;
-        }
-
-        void *addr = dlsym(handle, "vkGetInstanceProcAddr");
-        if (addr == NULL) {
-            loader_log(inst, VK_DEBUG_REPORT_ERROR_BIT_EXT, 0,
-                       "loader_get_manifest_files: Failed to dlsym[%p, vkGetInstanceProcAddr] # %s", handle, dlerror());
-            res = VK_ERROR_INITIALIZATION_FAILED;
-            goto out;
-        }
-
         Dl_info info;
-        int rc = dladdr(addr, &info);
+        int rc = dladdr(((void *)(&loader_get_manifest_files)), &info);
         if (rc == 0) {
-            loader_log(inst, VK_DEBUG_REPORT_ERROR_BIT_EXT, 0, "loader_get_manifest_files: Failed to dladdr[%p]", addr);
+            loader_log(inst, VK_DEBUG_REPORT_ERROR_BIT_EXT, 0, "loader_get_manifest_files: Failed to dladdr[%p]",
+                       ((void *)(&loader_get_manifest_files)));
             res = VK_ERROR_INITIALIZATION_FAILED;
             goto out;
         }
@@ -2979,7 +2962,13 @@ static VkResult loader_get_manifest_files(const struct loader_instance *inst, co
             goto out;
         }
 
-        int i = strncmp(loc_end + 1, soname, strlen(soname));
+        char const *soname = "libvulkan.so";
+        if (strncmp(loc_end + 1, soname, strlen(soname)) != 0) {
+            loader_log(inst, VK_DEBUG_REPORT_ERROR_BIT_EXT, 0, "loader_get_manifest_files: the name of vulkan loader [%s] is not libvulkan.so",
+                       info.dli_fname);
+            res = VK_ERROR_INITIALIZATION_FAILED;
+            goto out;
+        }
 
         char const *custom_location = "/./";
 
